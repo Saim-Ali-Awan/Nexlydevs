@@ -6,12 +6,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 const EASE = [0.16, 1, 0.3, 1] as const
 const EXIT_EASE = [0.76, 0, 0.24, 1] as const
 
-/* ---------- Timings ---------- */
-const T_HOLD = 250         // pause at 100% before exit starts
-const T_WORDMARK = 1.0     // wordmark fade-in on mount
-const T_CONTENT_OUT = 0.45 // how long content takes to fade/scale out
-const T_PANEL_OUT = 0.85   // how long the panel takes to slide away
-const T_BEAT = 100         // settle pause after exit, before page animations
+const T_HOLD = 250
+const T_WORDMARK = 1.0
+const T_CONTENT_OUT = 0.45
+const T_PANEL_OUT = 0.85
+const T_BEAT = 100
 
 export function Loader() {
   const reduce = useReducedMotion()
@@ -31,6 +30,7 @@ export function Loader() {
     const start = performance.now()
     let raf = 0
     let stopped = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
     let alreadyLoaded = document.readyState === 'complete'
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -50,15 +50,17 @@ export function Loader() {
       const rounded = Math.min(100, Math.floor(pct))
       setProgress((prev) => (prev !== rounded ? rounded : prev))
       if (rounded >= 100) {
-        setTimeout(() => setDone(true), T_HOLD)
+        timeoutId = setTimeout(() => setDone(true), T_HOLD)
         return
       }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
+
     return () => {
       stopped = true
       cancelAnimationFrame(raf)
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }, [done])
 
@@ -88,7 +90,6 @@ export function Loader() {
           aria-live="polite"
           aria-label="Loading"
         >
-          {/* Content — wordmark + percentage stacked, scales up gently and fades before the panel slides */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
             exit={{
@@ -97,35 +98,22 @@ export function Loader() {
               transition: { duration: T_CONTENT_OUT, ease: EXIT_EASE },
             }}
           >
-            <div className="flex flex-col items-center">
-              <motion.div
-                initial={reduce ? false : { opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: T_WORDMARK, ease: EASE }}
-                className="select-none text-[clamp(3rem,11vw,10rem)] font-medium lowercase leading-none tracking-tighter"
-              >
-                nexlydevs
-              </motion.div>
-
-              {/* Single percentage, solid color, medium size, right under the wordmark */}
-              <motion.span
-                initial={reduce ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: T_WORDMARK, ease: EASE, delay: 0.15 }}
-                className="mt-7 text-2xl font-medium tabular-nums leading-none tracking-tight text-foreground sm:mt-4 sm:text-3xl"
-              >
-                {progress}
-              </motion.span>
-            </div>
+            <motion.div
+              initial={reduce ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: T_WORDMARK, ease: EASE }}
+              className="select-none text-[clamp(3rem,11vw,10rem)] font-medium lowercase leading-none tracking-tighter"
+            >
+              nexlydevs
+            </motion.div>
           </motion.div>
 
-          {/* Status — top right */}
           <motion.div
-            className="absolute right-6 top-6 sm:right-14 sm:top-10"
+            className="absolute left-6 top-6 sm:left-14 sm:top-10"
             exit={{ opacity: 0, transition: { duration: 0.25, ease: 'easeOut' } }}
           >
-            <span className="font-mono text-lg uppercase tracking-wider text-muted-foreground">
-              {progress < 100 ? 'loading' : 'ready'}
+            <span className="font-mono text-sm font-medium tabular-nums tracking-tight text-muted-foreground">
+              {progress < 100 ? 'Loading' : 'Almost there'} — {progress}%
             </span>
           </motion.div>
         </motion.div>

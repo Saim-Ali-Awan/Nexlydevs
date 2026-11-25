@@ -5,6 +5,7 @@ import { Loader } from "@/components/loader"
 import { Navbar } from "@/components/sections/navbar"
 import { Footer } from "@/components/sections/footer"
 import { CustomScrollbar } from "@/components/custom-scrollbar"
+import { Toaster } from "@/components/ui/toast"
 import "./globals.css"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" })
@@ -39,15 +40,21 @@ const BOOTSTRAP_SCRIPT = `
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
+    // 🚨 suppressHydrationWarning is crucial here because the script changes the <html> class
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script async dangerouslySetInnerHTML={{ __html: BOOTSTRAP_SCRIPT }} />
+        {/* 🚨 Added id and removed async so it runs before paint */}
+        <script 
+          id="theme-bootstrap"
+          dangerouslySetInnerHTML={{ __html: BOOTSTRAP_SCRIPT }} 
+        />
         <noscript>
           <style dangerouslySetInnerHTML={{ __html: 'html, html body { overflow: auto !important; }' }} />
         </noscript>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}>
         <Providers>
+          <Toaster />
           <Navbar />
           <Loader />
           <CustomScrollbar />

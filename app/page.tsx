@@ -888,13 +888,14 @@ serves."
             entire collections process.
           </p>
 
+          {/* 🚨 UPDATED BUTTONS HERE */}
           <div className="hero-cta mt-14 flex flex-wrap items-center gap-3">
             <MagneticCTA href="#duely">See how Duely works</MagneticCTA>
             <Link
-              href="#services"
+              href="/pricing"
               className="inline-flex items-center gap-2 rounded-full border border-border px-7 py-3.5 text-sm font-medium transition-colors hover:bg-foreground/5"
             >
-              What we build
+              Get Duely
             </Link>
           </div>
 

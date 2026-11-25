@@ -2,9 +2,13 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { User } from '@supabase/supabase-js'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Sun, Moon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Sun, Moon, X } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 const SLIDE_EASE = [0.76, 0, 0.24, 1] as const
@@ -35,11 +39,24 @@ export function Navbar() {
   const [open, setOpen] = React.useState(false)
   const [isDark, setIsDark] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
+  const [user, setUser] = React.useState<User | null>(null)
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false)
   const reduce = useReducedMotion()
+  
+  const supabase = createClient()
 
   React.useEffect(() => {
     setMounted(true)
     setIsDark(document.documentElement.classList.contains('dark'))
+    
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null)
+    })
+
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = (e: MediaQueryListEvent) => {
       try { if (localStorage.getItem('theme')) return } catch {}
@@ -47,44 +64,39 @@ export function Navbar() {
       document.documentElement.classList.toggle('dark', e.matches)
     }
     mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
+
+    return () => {
+      authListener.subscription.unsubscribe()
+      mq.removeEventListener('change', onChange)
+    }
+  }, [supabase])
 
   const toggleTheme = () => {
     const next = !isDark
-
     const apply = () => {
       setIsDark(next)
       document.documentElement.classList.toggle('dark', next)
       try { localStorage.setItem('theme', next ? 'dark' : 'light') } catch {}
     }
-
     const doc = document as ViewTransitionDocument
-
-    // Fallback for unsupported browsers / reduced motion
-    if (!doc.startViewTransition || reduce) {
-      apply()
-      return
-    }
-
+    if (!doc.startViewTransition || reduce) { apply(); return }
     const transition = doc.startViewTransition(apply)
-
     transition.ready
       .then(() => {
         document.documentElement.animate(
-          {
-            clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'],
-          },
-          {
-            duration: 800,
-            easing: WIPE_EASE,
-            pseudoElement: '::view-transition-new(root)',
-          }
+          { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'] },
+          { duration: 800, easing: WIPE_EASE, pseudoElement: '::view-transition-new(root)' }
         )
       })
-      .catch(() => {
-        // If the transition fails, the theme has already switched via apply()
-      })
+      .catch(() => {})
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setShowLogoutDialog(false)
+    setOpen(false)
+    toast.add({ type: 'success', title: 'Logged out successfully' })
+    window.location.href = '/' 
   }
 
   React.useEffect(() => {
@@ -100,27 +112,19 @@ export function Navbar() {
 
   return (
     <>
-      {/* View Transitions CSS — set once, applies to ::view-transition pseudo-elements */}
       <style>{`
         ::view-transition-old(root),
         ::view-transition-new(root) {
           animation: none;
           mix-blend-mode: normal;
         }
-        ::view-transition-old(root) {
-          z-index: 0;
-        }
-        ::view-transition-new(root) {
-          z-index: 1;
-        }
+        ::view-transition-old(root) { z-index: 0; }
+        ::view-transition-new(root) { z-index: 1; }
       `}</style>
 
       <header className="fixed top-0 inset-x-0 z-50 bg-background border-b border-border/60">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-14">
-          <nav
-            aria-label="Primary"
-            className="flex h-20 sm:h-24 items-center justify-between gap-4"
-          >
+          <nav aria-label="Primary" className="flex h-20 sm:h-24 items-center justify-between gap-4">
             <Link
               href="/"
               onClick={() => setOpen(false)}
@@ -165,13 +169,33 @@ export function Navbar() {
                 </Button>
               )}
 
-              <div className="hidden lg:flex items-center gap-2">
-                <Button asChild variant="ghost" className="rounded-full">
-                  <Link href="/login">Log in</Link>
-                </Button>
-                <Button asChild className="rounded-full px-6">
-                  <Link href="/signup">Sign up</Link>
-                </Button>
+              <div className="hidden lg:flex items-center gap-4">
+                {user ? (
+                  <>
+                    {/* 🚨 Replaced real email with faded dummy email */}
+                    <span className="text-sm font-medium text-muted-foreground opacity-50">
+                      user@nexlydevs.com
+                    </span>
+                    <Button onClick={() => setShowLogoutDialog(true)} variant="outline" className="rounded-full">
+                      Log out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link 
+                      href="/login" 
+                      className={buttonVariants({ variant: "ghost", className: "rounded-full" })}
+                    >
+                      Log in
+                    </Link>
+                    <Link 
+                      href="/signup" 
+                      className={buttonVariants({ className: "rounded-full px-6" })}
+                    >
+                      Sign up
+                    </Link>
+                  </>
+                )}
               </div>
 
               <button
@@ -200,14 +224,80 @@ export function Navbar() {
       </header>
 
       <AnimatePresence mode="wait">
-        {open && <MenuOverlay onClose={() => setOpen(false)} />}
+        {open && <MenuOverlay onClose={() => setOpen(false)} user={user} onLogout={() => setShowLogoutDialog(true)} />}
+      </AnimatePresence>
+
+      {/* 🚨 Logout Confirmation Dialog with rounded-2xl matching homepage */}
+      <AnimatePresence>
+        {showLogoutDialog && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutDialog(false)}
+              className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm"
+            />
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="pointer-events-auto w-full max-w-[400px] rounded-2xl border border-border bg-card p-6 shadow-2xl relative"
+              >
+                <button 
+                  onClick={() => setShowLogoutDialog(false)}
+                  className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </button>
+                
+                <div className="flex flex-col space-y-1.5 mb-6">
+                  <h2 className="text-lg font-semibold leading-none tracking-tight">Log out</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Are you sure you want to log out of your account?
+                  </p>
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <Button onClick={() => setShowLogoutDialog(false)} variant="outline" className="cursor-pointer rounded-full">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleLogout} className="cursor-pointer rounded-full">
+                    Log out
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
       </AnimatePresence>
     </>
   )
 }
 
-function MenuOverlay({ onClose }: { onClose: () => void }) {
+function MenuOverlay({ onClose, user, onLogout }: { onClose: () => void, user: User | null, onLogout: () => void }) {
   const reduce = useReducedMotion()
+  const router = useRouter()
+
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    onClose()
+    if (user) return 
+    
+    e.preventDefault()
+    toast.add({
+      type: 'warning',
+      title: 'Sign in required',
+      description: 'Please log in or sign up to view this page.',
+      actionProps: {
+        children: 'Log in',
+        onClick: () => router.push('/login'),
+      },
+    })
+  }
+
   return (
     <motion.div
       initial={reduce ? { opacity: 0 } : { x: '100%' }}
@@ -228,7 +318,12 @@ function MenuOverlay({ onClose }: { onClose: () => void }) {
               transition={{ duration: 0.6, delay: 0.4 + i * 0.06, ease: EASE }}
               className="border-b border-border/60"
             >
-              <Link href={item.href} onClick={onClose} className="group flex items-baseline gap-6 py-5">
+              <Link
+                href={item.href}
+                onClick={(e) => handleNavClick(e, item.href)}
+                prefetch={false}
+                className="group flex items-baseline gap-6 py-5"
+              >
                 <span className="font-mono text-[10px] text-muted-foreground">
                   {String(i + 1).padStart(2, '0')}
                 </span>
@@ -250,16 +345,45 @@ function MenuOverlay({ onClose }: { onClose: () => void }) {
           transition={{ duration: 0.6, delay: 0.7, ease: EASE }}
           className="mt-10 flex flex-col gap-8"
         >
-          <div className="flex items-center gap-3 lg:hidden">
-            <Button asChild variant="ghost" className="rounded-full flex-1">
-              <Link href="/login" onClick={onClose}>Log in</Link>
-            </Button>
-            <Button asChild className="rounded-full px-6 flex-1">
-              <Link href="/signup" onClick={onClose}>Sign up</Link>
-            </Button>
+          <div className="flex flex-col gap-4 lg:hidden">
+            {user ? (
+              <div className="flex flex-col gap-3">
+                <div className="text-sm font-medium text-muted-foreground">
+                  {/* 🚨 Faded dummy email on mobile */}
+                  Logged in as <span className="opacity-50">user@nexlydevs.com</span>
+                </div>
+                <Button 
+                  onClick={() => {
+                    onClose()
+                    onLogout()
+                  }} 
+                  variant="outline" 
+                  className="rounded-full w-full"
+                >
+                  Log out
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/login"
+                  onClick={onClose}
+                  className={buttonVariants({ variant: "ghost", className: "rounded-full flex-1" })}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={onClose}
+                  className={buttonVariants({ className: "rounded-full px-6 flex-1" })}
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 border-t border-border/60 pt-6">
             <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
               A development studio building software for specific industries.
             </p>
