@@ -248,20 +248,31 @@ function MenuOverlay({ onClose }: { onClose: () => void }) {
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.7, ease: EASE }}
-          className="mt-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6"
+          className="mt-10 flex flex-col gap-8"
         >
-          <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
-            A development studio building software for specific industries.
-          </p>
-          <ul className="flex gap-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            {SOCIALS.map((s) => (
-              <li key={s.label}>
-                <a href={s.href} className="hover:text-foreground transition-colors">
-                  {s.label}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-center gap-3 lg:hidden">
+            <Button asChild variant="ghost" className="rounded-full flex-1">
+              <Link href="/login" onClick={onClose}>Log in</Link>
+            </Button>
+            <Button asChild className="rounded-full px-6 flex-1">
+              <Link href="/signup" onClick={onClose}>Sign up</Link>
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+            <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
+              A development studio building software for specific industries.
+            </p>
+            <ul className="flex gap-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+              {SOCIALS.map((s) => (
+                <li key={s.label}>
+                  <a href={s.href} className="hover:text-foreground transition-colors">
+                    {s.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </motion.div>
       </div>
     </motion.div>
