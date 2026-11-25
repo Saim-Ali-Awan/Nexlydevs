@@ -88,7 +88,7 @@ export function Loader() {
           aria-live="polite"
           aria-label="Loading"
         >
-          {/* Content — wordmark + percentage + bouncing dots */}
+          {/* Content — wordmark + percentage stacked, scales up gently and fades before the panel slides */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
             exit={{
@@ -107,51 +107,15 @@ export function Loader() {
                 nexlydevs
               </motion.div>
 
-              {/* Percentage — big, solid, no % sign */}
+              {/* Single percentage, solid color, medium size, right under the wordmark */}
               <motion.span
                 initial={reduce ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: T_WORDMARK, ease: EASE, delay: 0.15 }}
-                className="mt-6 text-5xl font-medium tabular-nums leading-none tracking-tight text-foreground sm:mt-8 sm:text-6xl md:text-7xl"
+                className="mt-3 text-2xl font-medium tabular-nums leading-none tracking-tight text-foreground sm:mt-4 sm:text-3xl"
               >
-                {progress}
+                {progress}%
               </motion.span>
-
-              {/* Popping / bouncing loader — no spinner */}
-              <motion.div
-                initial={reduce ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: T_WORDMARK, ease: EASE, delay: 0.3 }}
-                className="mt-10 flex items-end gap-2.5 sm:mt-14 sm:gap-3"
-                aria-hidden
-              >
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="block h-2 w-2 rounded-[3px] bg-foreground sm:h-2.5 sm:w-2.5"
-                    animate={
-                      reduce
-                        ? { opacity: 1 }
-                        : {
-                            y: [0, -16, 0],
-                            rotate: [0, 45, 0],
-                            scale: [1, 1.18, 1],
-                            opacity: [0.35, 1, 0.35],
-                          }
-                    }
-                    transition={
-                      reduce
-                        ? undefined
-                        : {
-                            duration: 1.0,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                            delay: i * 0.11,
-                          }
-                    }
-                  />
-                ))}
-              </motion.div>
             </div>
           </motion.div>
 
@@ -160,7 +124,7 @@ export function Loader() {
             className="absolute right-6 top-6 sm:right-14 sm:top-10"
             exit={{ opacity: 0, transition: { duration: 0.25, ease: 'easeOut' } }}
           >
-            <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="font-mono text-lg uppercase tracking-wider text-muted-foreground">
               {progress < 100 ? 'loading' : 'ready'}
             </span>
           </motion.div>
