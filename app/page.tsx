@@ -6,12 +6,12 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, ArrowDown } from 'lucide-react'
+import { ArrowUpRight, ArrowDown, Mail, MailOpen, CheckCircle2, Clock, Plug, BarChart3 } from 'lucide-react'
 import { Navbar } from '@/components/sections/navbar'
 
 gsap.registerPlugin(ScrollTrigger)
 
-/* ---------------- Data (trimmed) ---------------- */
+/* ---------------- Data ---------------- */
 
 const SERVICES = [
   { number: '01', title: 'Websites', description: 'Marketing sites and product pages built for the industry they serve.', items: ['Landing pages', 'Product sites', 'Design systems'] },
@@ -26,10 +26,43 @@ const PROCESS = [
   { number: '03', title: 'Ship', body: 'Deploy, watch, iterate.' },
 ]
 
-const STUDIO = [
-  { id: 'duely', status: 'In progress', label: 'Duely', title: 'A calmer way to chase payments.', description: 'Invoice reminders that do not sound like a robot.', bullets: ['Invoice scheduling', 'Tone-controlled reminders', 'Stripe payments'], variant: 'duely' as const },
-  { id: 'next-1', status: 'In exploration', label: 'Next build', title: 'A quiet analytics view.', description: 'One screen instead of four dashboards.', bullets: ['Scoped', 'Prototyping', 'Beta 2026'], variant: 'dashboard' as const },
-  { id: 'next-2', status: 'In research', label: 'Ongoing', title: 'Task tracking without busywork.', description: 'Interviewing teams who rebuild the same tools.', bullets: ['Interviews', 'Pattern mapping', 'Design sprint'], variant: 'list' as const },
+const DUELY_STEPS = [
+  {
+    id: 'sync',
+    kicker: 'Connect',
+    title: 'Duely plugs into your payment system.',
+    body: 'Duely reads your existing invoices and payments directly. No migration, no new ledger to maintain. It knows who owes, who paid, and how much, the moment it changes.',
+    icon: Plug,
+    screen: 'invoices' as const,
+    bullets: ['Reads existing invoices', 'Real-time payment sync', 'Zero data re-entry'],
+  },
+  {
+    id: 'track',
+    kicker: 'Track',
+    title: 'Every reminder, tracked to the open.',
+    body: 'Each client email Duely sends is logged the moment it lands. You see who opened it, who ignored it, and who never received it, per invoice, per client, per day.',
+    icon: Mail,
+    screen: 'email' as const,
+    bullets: ['Delivery confirmed', 'Open tracking', 'Per-client history'],
+  },
+  {
+    id: 'respond',
+    kicker: 'Respond',
+    title: 'Know who replied before you chase.',
+    body: 'Client responses are matched back to the invoice automatically. No more wondering whether the message arrived. The answer is already on the screen, with the exact quote and timestamp.',
+    icon: CheckCircle2,
+    screen: 'response' as const,
+    bullets: ['Auto-matched replies', 'Reply snippets', 'Follow-up suggestions'],
+  },
+  {
+    id: 'decide',
+    kicker: 'Decide',
+    title: 'The head of payments gets one clean dashboard.',
+    body: 'Outstanding balance, open emails, replied clients, cash expected this week. Every metric the head of payments needs to make a decision, in one glance. Built on a personalised dashboard layer, fully branded to your business.',
+    icon: BarChart3,
+    screen: 'dashboard' as const,
+    bullets: ['Custom metrics', 'Personalised layout', 'Real-time sync'],
+  },
 ]
 
 const APPROACH = [
@@ -41,10 +74,12 @@ const APPROACH = [
 
 const STATS = [
   { value: 4, label: 'Services', suffix: '' },
-  { value: 12, label: 'Ideas explored', suffix: '+' },
+  { value: 12, label: 'Products explored', suffix: '+' },
   { value: 100, label: 'Solo-built', suffix: '%' },
-  { value: 0, label: 'Handoffs', suffix: '' },
+  { value: 6, label: 'Industries served', suffix: '' },
 ]
+
+/* ---------------- Page ---------------- */
 
 export default function Home() {
   const [loaderDone, setLoaderDone] = React.useState(false)
@@ -76,7 +111,7 @@ export default function Home() {
         <Services />
         <Process />
         <Stats />
-        <InTheStudio />
+        <DuelyExplainer />
         <Approach />
         <Philosophy />
         <Contact />
@@ -85,8 +120,7 @@ export default function Home() {
   )
 }
 
-/* ---------- Below: identical to your current file except the data
-   blocks above were trimmed and the one class change below. ---------- */
+/* ---------------- Ambient / Cursor ---------------- */
 
 function Ambient() {
   return (
@@ -119,6 +153,8 @@ function MouseFollower() {
       style={{ background: 'radial-gradient(circle, color-mix(in oklch, var(--primary) 60%, transparent) 0%, transparent 60%)', filter: 'blur(70px)' }} />
   )
 }
+
+/* ---------------- Text primitives ---------------- */
 
 function SplitWords({ text, className = '', as: Tag = 'span', stagger = 0.07, duration = 1.1, play, reverse = true }: {
   text: string; className?: string; as?: 'span' | 'h1' | 'h2' | 'h3'; stagger?: number; duration?: number; play?: boolean; reverse?: boolean;
@@ -228,7 +264,9 @@ function SectionLabel({ index, trailing, children }: { index: string; trailing?:
   )
 }
 
-function PhoneMockup({ variant = 'duely' }: { variant?: 'duely' | 'dashboard' | 'list' }) {
+/* ---------------- Phone frame + Duely screens ---------------- */
+
+function PhoneMockup({ screen }: { screen: 'invoices' | 'email' | 'response' | 'dashboard' }) {
   return (
     <div className="relative mx-auto w-full max-w-[260px]">
       <div className="relative aspect-[9/19.5] overflow-hidden rounded-[2rem] border-[6px] border-zinc-800 bg-card shadow-[0_25px_60px_-20px_rgba(0,0,0,0.5)] dark:shadow-[0_25px_80px_-20px_rgba(0,0,0,0.9)]">
@@ -237,16 +275,17 @@ function PhoneMockup({ variant = 'duely' }: { variant?: 'duely' | 'dashboard' | 
           <span>9:41</span><span className="flex items-center gap-1.5"><span>5G</span><span>▮</span></span>
         </div>
         <div className="px-4 pb-4 pt-3">
-          {variant === 'duely' && <DuelyUI />}
-          {variant === 'dashboard' && <DashboardUI />}
-          {variant === 'list' && <ListUI />}
+          {screen === 'invoices' && <InvoicesScreen />}
+          {screen === 'email' && <EmailScreen />}
+          {screen === 'response' && <ResponseScreen />}
+          {screen === 'dashboard' && <DashboardScreen />}
         </div>
       </div>
     </div>
   )
 }
 
-function DuelyUI() {
+function InvoicesScreen() {
   const rows = [
     { name: 'Northwind', amount: '$2,400', status: 'Due' },
     { name: 'Halo Labs', amount: '$1,850', status: 'Sent' },
@@ -255,68 +294,206 @@ function DuelyUI() {
   ]
   return (
     <>
-      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">Outstanding</p>
+      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">Synced from payments</p>
       <p className="mt-1 text-2xl font-medium tracking-tight">$8,420</p>
+      <p className="mt-0.5 font-mono text-[8px] text-muted-foreground">outstanding across 4 clients</p>
       <div className="mt-4 space-y-2">
-        {rows.map((r) => (
-          <div key={r.name} className="rounded-md border border-border bg-background/40 p-2.5">
+        {rows.map((r, i) => (
+          <motion.div
+            key={r.name}
+            initial={{ opacity: 0, x: -12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false }}
+            transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+            className="rounded-md border border-border bg-background/40 p-2.5"
+          >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium">{r.name}</span>
               <span className={`font-mono text-[7px] uppercase tracking-wider ${r.status === 'Paid' ? 'text-foreground' : r.status === 'Due' ? 'text-foreground/70' : 'text-muted-foreground'}`}>{r.status}</span>
             </div>
             <div className="mt-1 font-mono text-[9px] tabular-nums text-muted-foreground">{r.amount}</div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </>
   )
 }
 
-function DashboardUI() {
-  const bars = [42, 68, 51, 82, 60, 92, 74]
-  return (
-    <>
-      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">This week</p>
-      <p className="mt-1 text-2xl font-medium tracking-tight">2,847</p>
-      <p className="mt-0.5 font-mono text-[8px] text-muted-foreground">+12.4% vs last week</p>
-      <div className="mt-4 flex h-24 items-end gap-1.5">
-        {bars.map((h, i) => (
-          <motion.div key={i} initial={{ height: 0 }} whileInView={{ height: `${h}%` }} viewport={{ once: false }} transition={{ duration: 0.7, delay: i * 0.06, ease: 'easeOut' }} className="flex-1 rounded-t bg-foreground/80" />
-        ))}
-      </div>
-      <div className="mt-2 flex justify-between font-mono text-[7px] text-muted-foreground">
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
-      </div>
-    </>
-  )
-}
-
-function ListUI() {
-  const tasks = [
-    { title: 'Review design', done: true },
-    { title: 'Fix auth flow', done: true },
-    { title: 'Deploy v1.2', done: false },
-    { title: 'Write docs', done: false },
-    { title: 'Test payments', done: false },
-    { title: 'Ship to beta', done: false },
+function EmailScreen() {
+  const mails = [
+    { client: 'Northwind', state: 'Opened 2x', tone: 'open' as const },
+    { client: 'Halo Labs', state: 'Delivered', tone: 'sent' as const },
+    { client: 'Craft & Co.', state: 'Opened 1x', tone: 'open' as const },
+    { client: 'Ardent', state: 'Paid', tone: 'paid' as const },
   ]
   return (
     <>
-      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">Today</p>
-      <p className="mt-1 text-2xl font-medium tracking-tight">2/6 done</p>
-      <div className="mt-4 space-y-2.5">
-        {tasks.map((t, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={`grid h-3.5 w-3.5 place-items-center rounded-sm border ${t.done ? 'border-foreground bg-foreground' : 'border-border'}`}>
-              {t.done && <svg viewBox="0 0 10 10" className="h-2 w-2 text-background"><path d="M2 5l2 2 4-4.5" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>}
+      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">Reminder tracking</p>
+      <p className="mt-1 text-2xl font-medium tracking-tight">3 opened</p>
+      <p className="mt-0.5 font-mono text-[8px] text-muted-foreground">of 4 emails sent today</p>
+      <div className="mt-4 space-y-2">
+        {mails.map((m, i) => (
+          <motion.div
+            key={m.client}
+            initial={{ opacity: 0, x: 12 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: false }}
+            transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+            className="flex items-center justify-between rounded-md border border-border bg-background/40 p-2.5"
+          >
+            <div className="flex items-center gap-2">
+              {m.tone === 'open' && <MailOpen className="h-3 w-3 text-foreground" />}
+              {m.tone === 'sent' && <Mail className="h-3 w-3 text-muted-foreground" />}
+              {m.tone === 'paid' && <CheckCircle2 className="h-3 w-3 text-foreground" />}
+              <span className="text-[10px] font-medium">{m.client}</span>
             </div>
-            <span className={`text-[10px] ${t.done ? 'text-muted-foreground line-through' : ''}`}>{t.title}</span>
-          </div>
+            <span className="font-mono text-[8px] text-muted-foreground">{m.state}</span>
+          </motion.div>
         ))}
       </div>
     </>
   )
 }
+
+function ResponseScreen() {
+  const responses = [
+    { client: 'Northwind', reply: 'Paying Friday', tone: 'ok' as const },
+    { client: 'Craft & Co.', reply: 'Sent to accounts', tone: 'ok' as const },
+    { client: 'Ardent', reply: 'Paid', tone: 'done' as const },
+    { client: 'Halo Labs', reply: 'No reply yet', tone: 'wait' as const },
+  ]
+  return (
+    <>
+      <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-muted-foreground">Responses</p>
+      <p className="mt-1 text-2xl font-medium tracking-tight">3 replied</p>
+      <p className="mt-0.5 font-mono text-[8px] text-muted-foreground">matched to invoices automatically</p>
+      <div className="mt-4 space-y-2">
+        {responses.map((r, i) => (
+          <motion.div
+            key={r.client}
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false }}
+            transition={{ duration: 0.45, delay: i * 0.09, ease: 'easeOut' }}
+            className="rounded-md border border-border bg-background/40 p-2.5"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium">{r.client}</span>
+              {r.tone === 'wait' ? <Clock className="h-3 w-3 text-muted-foreground" /> : <CheckCircle2 className="h-3 w-3 text-foreground" />}
+            </div>
+            <p className="mt-0.5 text-[9px] text-muted-foreground">{r.reply}</p>
+          </motion.div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+/* Full gridded dashboard used in the hero phone */
+function DashboardScreen() {
+  const kpis = [
+    { label: 'Outstanding', value: '$8.4k', accent: 'text-amber-600' },
+    { label: 'Collected', value: '$12.4k', accent: 'text-emerald-600' },
+    { label: 'Open rate', value: '68%', accent: 'text-foreground' },
+    { label: 'Replies', value: '3', accent: 'text-foreground' },
+  ]
+  const bars = [42, 68, 51, 82, 60, 92, 74]
+  const activity = [
+    { client: 'Northwind', what: 'Opened reminder', when: '2m' },
+    { client: 'Craft Co.', what: 'Replied, paying Fri', when: '18m' },
+    { client: 'Halo Labs', what: 'Reminder sent', when: '1h' },
+  ]
+  return (
+    <div className="flex h-full flex-col gap-2">
+      {/* App header */}
+      <motion.div
+        initial={{ opacity: 0, y: -4 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-1.5">
+          <div className="grid h-4 w-4 place-items-center rounded-sm bg-foreground">
+            <span className="text-[6px] font-bold text-background">D</span>
+          </div>
+          <span className="text-[10px] font-semibold tracking-tight">Duely</span>
+        </div>
+        <span className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[6px] uppercase tracking-wider text-muted-foreground">Sep 12</span>
+      </motion.div>
+
+      {/* 2x2 KPI grid */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {kpis.map((k, i) => (
+          <motion.div
+            key={k.label}
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: false }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.06, ease: 'easeOut' }}
+            className="rounded-md border border-border bg-background/40 p-1.5"
+          >
+            <p className="font-mono text-[6px] uppercase tracking-wider text-muted-foreground">{k.label}</p>
+            <p className={`mt-0.5 text-[11px] font-semibold tabular-nums ${k.accent}`}>{k.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Cash flow chart */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false }}
+        transition={{ duration: 0.5, delay: 0.3, ease: 'easeOut' }}
+        className="rounded-md border border-border bg-background/40 p-1.5"
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[6px] uppercase tracking-wider text-muted-foreground">Cash flow</p>
+          <span className="font-mono text-[6px] font-medium text-emerald-600">+12.4%</span>
+        </div>
+        <div className="mt-1.5 flex h-10 items-end gap-0.5">
+          {bars.map((h, i) => (
+            <motion.div
+              key={i}
+              initial={{ height: 0 }}
+              whileInView={{ height: `${h}%` }}
+              viewport={{ once: false }}
+              transition={{ duration: 0.6, delay: 0.4 + i * 0.05, ease: 'easeOut' }}
+              className="flex-1 rounded-t bg-foreground/80"
+            />
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Live activity */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false }}
+        transition={{ duration: 0.5, delay: 0.55, ease: 'easeOut' }}
+        className="flex-1 rounded-md border border-border bg-background/40 p-1.5"
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[6px] uppercase tracking-wider text-muted-foreground">Activity</p>
+          <span className="font-mono text-[6px] text-muted-foreground">Live</span>
+        </div>
+        <div className="mt-1 space-y-1">
+          {activity.map((a, i) => (
+            <div key={i} className="flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                <p className="truncate text-[7px] font-medium">{a.client}</p>
+                <p className="truncate font-mono text-[6px] text-muted-foreground">{a.what}</p>
+              </div>
+              <span className="shrink-0 font-mono text-[6px] text-muted-foreground">{a.when}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+/* ---------------- Hero ---------------- */
 
 function Hero({ loaderDone }: { loaderDone: boolean }) {
   const ref = React.useRef<HTMLElement>(null)
@@ -352,31 +529,28 @@ function Hero({ loaderDone }: { loaderDone: boolean }) {
   return (
     <section ref={ref} className="relative mx-auto max-w-[1600px] px-6 pb-40 pt-24 sm:px-10 sm:pb-52 sm:pt-32 lg:px-14 lg:pb-64">
       <p className="hero-eyebrow font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-        <SplitChars text="NexlyDevs / Development studio" play={loaderDone} stagger={0.02} />
+        <SplitChars text="Duely by NexlyDevs" play={loaderDone} stagger={0.02} />
       </p>
 
       <h1 className="hero-title mt-10 max-w-[14ch] text-[clamp(4rem,11vw,10rem)] font-normal leading-[0.88] tracking-tighter">
-        <SplitWords as="span" text="Software built for the niche it serves." stagger={0.08} play={loaderDone} className="block" />
+        <SplitWords as="span" text="Every unpaid invoice, tracked from sent to settled." stagger={0.08} play={loaderDone} className="block" />
       </h1>
 
       <div className="mt-24 grid items-start gap-20 lg:grid-cols-[1.1fr_1fr] lg:gap-28">
         <div>
           <p className="hero-sub max-w-xl text-lg leading-relaxed sm:text-xl">
-            NexlyDevs builds websites, software, and Android apps for specific industries.
+            Duely is a payment recovery platform. It connects to your payment system and shows you which clients owe you, who has been emailed, who opened the reminder, and who replied. One dashboard for the entire collections process.
           </p>
 
           <div className="hero-cta mt-14 flex flex-wrap items-center gap-3">
-            <MagneticCTA href="/contact">Start a project</MagneticCTA>
+            <MagneticCTA href="#duely">See how Duely works</MagneticCTA>
             <Link href="#services" className="inline-flex items-center gap-2 rounded-full border border-border px-7 py-3.5 text-sm font-medium transition-colors hover:bg-foreground/5">
-              What we do
+              What we build
             </Link>
           </div>
 
           <div className="hero-live mt-16 flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/40" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground" />
-            </span>
+            <span className="inline-flex h-2 w-2 rounded-full bg-foreground" />
             <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Currently building Duely</span>
           </div>
 
@@ -390,12 +564,14 @@ function Hero({ loaderDone }: { loaderDone: boolean }) {
         </div>
 
         <div className="relative mx-auto w-full max-w-[300px] lg:ml-auto lg:mr-0">
-          <div ref={phoneRef}><PhoneMockup variant="duely" /></div>
+          <div ref={phoneRef}><PhoneMockup screen="dashboard" /></div>
         </div>
       </div>
     </section>
   )
 }
+
+/* ---------------- Marquee ---------------- */
 
 function Marquee() {
   const ref = React.useRef<HTMLDivElement>(null)
@@ -413,7 +589,7 @@ function Marquee() {
     })
   }, { scope: ref })
 
-  const items = ['nexlydevs', 'software', 'design', 'build', 'websites', 'android', 'tools', 'products']
+  const items = ['nexlydevs', 'duely', 'payments', 'reminders', 'recovery', 'dashboard', 'software', 'studio']
 
   return (
     <div ref={ref} className="relative overflow-hidden border-y border-foreground bg-foreground py-6" aria-hidden>
@@ -433,17 +609,27 @@ function Marquee() {
   )
 }
 
+/* ---------------- Intro (defines the site) ---------------- */
+
 function Intro() {
   return (
     <section className="mx-auto max-w-[1600px] px-6 py-40 sm:px-10 sm:py-56 lg:px-14">
       <div className="max-w-4xl">
         <SectionLabel index="00" trailing="Overview">Introduction</SectionLabel>
-        <WordRevealText from={0.1} className="mt-12 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-[1.3] tracking-tight"
-          text="Most software is built for everyone and fits no one. NexlyDevs builds the opposite." />
+        <h2 className="mt-12 text-[clamp(2rem,4vw,3.5rem)] font-normal leading-[1.1] tracking-tight">
+          NexlyDevs is a development studio. Duely is our first product.
+        </h2>
+        <WordRevealText
+          from={0.1}
+          className="mt-10 text-[clamp(1.25rem,2.4vw,1.75rem)] leading-[1.4] text-muted-foreground"
+          text="Most business software is built for everyone and fits no one. Duely is built for one job. Making sure businesses get paid on time, without chasing clients by hand."
+        />
       </div>
     </section>
   )
 }
+
+/* ---------------- Services ---------------- */
 
 function Services() {
   const ref = React.useRef<HTMLElement>(null)
@@ -487,6 +673,8 @@ function Services() {
   )
 }
 
+/* ---------------- Process ---------------- */
+
 function Process() {
   const ref = React.useRef<HTMLElement>(null)
   useGSAP(() => {
@@ -519,6 +707,8 @@ function Process() {
   )
 }
 
+/* ---------------- Stats ---------------- */
+
 function Stats() {
   const ref = React.useRef<HTMLElement>(null)
   useGSAP(() => {
@@ -549,63 +739,78 @@ function Stats() {
   )
 }
 
-function InTheStudio() {
+/* ---------------- Duely explainer (product section) ---------------- */
+
+function DuelyExplainer() {
   const ref = React.useRef<HTMLElement>(null)
   useGSAP(() => {
-    gsap.from('.studio-card', { opacity: 0, y: 80, filter: 'blur(8px)', duration: 1.1, stagger: 0.15, ease: 'power3.out',
-      scrollTrigger: { trigger: ref.current, start: 'top 75%', toggleActions: 'play none none reverse' } })
+    if (!ref.current) return
+    gsap.from('.duely-card', {
+      opacity: 0, y: 80, filter: 'blur(8px)',
+      duration: 1.1, stagger: 0.15, ease: 'power3.out',
+      scrollTrigger: { trigger: ref.current, start: 'top 75%', toggleActions: 'play none none reverse' },
+    })
   }, { scope: ref })
 
   return (
-    <section ref={ref} id="work" className="relative py-40 sm:py-56 scroll-mt-20">
+    <section ref={ref} id="duely" className="relative py-40 sm:py-56 scroll-mt-20">
       <div className="mx-auto mb-24 max-w-[1600px] px-6 sm:px-10 lg:px-14">
-        <SectionLabel index="03" trailing="03 active">In the studio</SectionLabel>
+        <SectionLabel index="03" trailing="Duely">Product</SectionLabel>
         <h2 className="mt-10 max-w-4xl text-[clamp(3rem,7vw,6rem)] font-normal leading-[0.92] tracking-tighter">
-          <SplitWords text="What we are building right now." stagger={0.07} />
+          <SplitWords text="Meet Duely." stagger={0.07} />
         </h2>
+        <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          Duely is a payment recovery platform for small and mid-sized businesses. It connects to your existing payment system, tracks every reminder email, and gives the head of payments one clean dashboard for every open invoice. No migration. No manual chasing. No guessing.
+        </p>
       </div>
 
       <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-14">
-        {STUDIO.map((w, i) => (
-          <div key={w.id} className="studio-card sticky top-24" style={{ zIndex: i + 1, marginBottom: i === STUDIO.length - 1 ? 0 : '4rem' }}>
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_25px_60px_-30px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_80px_-25px_rgba(0,0,0,0.7)]">
-              <div className="grid lg:grid-cols-[1.15fr_1fr]">
-                <div className="flex flex-col justify-between p-10 sm:p-14 lg:p-20">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-                      <span>{String(i + 1).padStart(2, '0')}</span>
-                      <span>{w.label}</span>
-                      <span className="flex items-center gap-2">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/50" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground" />
+        {DUELY_STEPS.map((step, i) => {
+          const Icon = step.icon
+          return (
+            <div
+              key={step.id}
+              className="duely-card sticky top-24"
+              style={{ zIndex: i + 1, marginBottom: i === DUELY_STEPS.length - 1 ? 0 : '4rem' }}
+            >
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_25px_60px_-30px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_80px_-25px_rgba(0,0,0,0.7)]">
+                <div className="grid lg:grid-cols-[1.15fr_1fr]">
+                  <div className="flex flex-col justify-between p-10 sm:p-14 lg:p-20">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+                        <span className="inline-flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5" />
+                          <span>{String(i + 1).padStart(2, '0')}</span>
                         </span>
-                        {w.status}
-                      </span>
+                        <span className="opacity-60">/</span>
+                        <span>{step.kicker}</span>
+                      </div>
+                      <h3 className="mt-10 text-[clamp(2rem,4vw,3.5rem)] font-normal leading-[1.02] tracking-tighter">{step.title}</h3>
+                      <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">{step.body}</p>
                     </div>
-                    <h3 className="mt-10 text-[clamp(2rem,4vw,3.5rem)] font-normal leading-[1.02] tracking-tighter">{w.title}</h3>
-                    <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">{w.description}</p>
+                    <ul className="mt-14 space-y-3">
+                      {step.bullets.map((b) => (
+                        <li key={b} className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground">
+                          <span className="h-1 w-1 rounded-full bg-current opacity-60" />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="mt-14 space-y-3">
-                    {w.bullets.map((b) => (
-                      <li key={b} className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground">
-                        <span className="h-1 w-1 rounded-full bg-current opacity-60" />
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex items-center justify-center p-10 sm:p-14 lg:p-20">
-                  <PhoneMockup variant={w.variant} />
+                  <div className="flex items-center justify-center bg-muted/30 p-10 sm:p-14 lg:p-20">
+                    <PhoneMockup screen={step.screen} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
 }
+
+/* ---------------- Approach ---------------- */
 
 function Approach() {
   const ref = React.useRef<HTMLElement>(null)
@@ -639,6 +844,8 @@ function Approach() {
   )
 }
 
+/* ---------------- Philosophy ---------------- */
+
 function Philosophy() {
   return (
     <section className="mx-auto max-w-[1600px] px-6 py-40 sm:px-10 sm:py-56 lg:px-14">
@@ -650,6 +857,8 @@ function Philosophy() {
     </section>
   )
 }
+
+/* ---------------- Contact ---------------- */
 
 function Contact() {
   const ref = React.useRef<HTMLElement>(null)

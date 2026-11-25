@@ -4,9 +4,11 @@ import * as React from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Sun, Moon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const EASE = [0.16, 1, 0.3, 1] as const
 const SLIDE_EASE = [0.76, 0, 0.24, 1] as const
+const WIPE_EASE = 'cubic-bezier(0.76, 0, 0.24, 1)'
 
 const NAV_ITEMS = [
   { label: 'Work', href: '/work' },
@@ -20,6 +22,14 @@ const SOCIALS = [
   { label: 'GitHub', href: 'https://github.com' },
   { label: 'X', href: 'https://x.com' },
 ] as const
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (cb: () => void) => {
+    ready: Promise<void>
+    finished: Promise<void>
+    updateCallbackDone: Promise<void>
+  }
+}
 
 export function Navbar() {
   const [open, setOpen] = React.useState(false)
@@ -42,14 +52,39 @@ export function Navbar() {
 
   const toggleTheme = () => {
     const next = !isDark
+
     const apply = () => {
       setIsDark(next)
       document.documentElement.classList.toggle('dark', next)
       try { localStorage.setItem('theme', next ? 'dark' : 'light') } catch {}
     }
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => void }
-    if (doc.startViewTransition && !reduce) doc.startViewTransition(apply)
-    else apply()
+
+    const doc = document as ViewTransitionDocument
+
+    // Fallback for unsupported browsers / reduced motion
+    if (!doc.startViewTransition || reduce) {
+      apply()
+      return
+    }
+
+    const transition = doc.startViewTransition(apply)
+
+    transition.ready
+      .then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'],
+          },
+          {
+            duration: 800,
+            easing: WIPE_EASE,
+            pseudoElement: '::view-transition-new(root)',
+          }
+        )
+      })
+      .catch(() => {
+        // If the transition fails, the theme has already switched via apply()
+      })
   }
 
   React.useEffect(() => {
@@ -65,27 +100,44 @@ export function Navbar() {
 
   return (
     <>
+      {/* View Transitions CSS — set once, applies to ::view-transition pseudo-elements */}
+      <style>{`
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation: none;
+          mix-blend-mode: normal;
+        }
+        ::view-transition-old(root) {
+          z-index: 0;
+        }
+        ::view-transition-new(root) {
+          z-index: 1;
+        }
+      `}</style>
+
       <header className="fixed top-0 inset-x-0 z-50 bg-background border-b border-border/60">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-14">
           <nav
             aria-label="Primary"
-            className="flex h-20 sm:h-24 items-center justify-between"
+            className="flex h-20 sm:h-24 items-center justify-between gap-4"
           >
             <Link
               href="/"
               onClick={() => setOpen(false)}
-              className="text-2xl sm:text-3xl font-medium tracking-tight lowercase"
+              className="text-2xl sm:text-3xl font-medium tracking-tight lowercase shrink-0"
             >
               nexlydevs
             </Link>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {mounted && (
-                <button
+                <Button
                   type="button"
                   onClick={toggleTheme}
+                  variant="ghost"
+                  size="icon"
                   aria-label={isDark ? 'Switch to light' : 'Switch to dark'}
-                  className="grid h-11 w-11 place-items-center rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                  className="h-11 w-11 rounded-full"
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     {isDark ? (
@@ -110,8 +162,17 @@ export function Navbar() {
                       </motion.span>
                     )}
                   </AnimatePresence>
-                </button>
+                </Button>
               )}
+
+              <div className="hidden lg:flex items-center gap-2">
+                <Button asChild variant="ghost" className="rounded-full">
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild className="rounded-full px-6">
+                  <Link href="/signup">Sign up</Link>
+                </Button>
+              </div>
 
               <button
                 type="button"
@@ -153,11 +214,11 @@ function MenuOverlay({ onClose }: { onClose: () => void }) {
       animate={reduce ? { opacity: 1 } : { x: 0 }}
       exit={reduce ? { opacity: 0 } : { x: '100%' }}
       transition={reduce ? { duration: 0.4, ease: EASE } : { duration: 0.9, ease: SLIDE_EASE }}
-      className="fixed inset-0 z-40 overflow-hidden bg-background"
+      className="fixed inset-0 z-40 overflow-y-auto bg-background"
       role="dialog"
       aria-modal="true"
     >
-      <div className="mx-auto flex h-full max-w-[1600px] flex-col justify-between px-6 sm:px-10 lg:px-14 pb-10 pt-28">
+      <div className="mx-auto flex min-h-full max-w-[1600px] flex-col justify-between px-6 sm:px-10 lg:px-14 pb-10 pt-28">
         <ul className="flex flex-col">
           {NAV_ITEMS.map((item, i) => (
             <motion.li
@@ -184,10 +245,10 @@ function MenuOverlay({ onClose }: { onClose: () => void }) {
         </ul>
 
         <motion.div
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.7 }}
-          className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6"
+          initial={reduce ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.7, ease: EASE }}
+          className="mt-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6"
         >
           <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
             A development studio building software for specific industries.

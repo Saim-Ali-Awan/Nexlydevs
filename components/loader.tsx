@@ -112,9 +112,9 @@ export function Loader() {
                 initial={reduce ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: T_WORDMARK, ease: EASE, delay: 0.15 }}
-                className="mt-3 text-2xl font-medium tabular-nums leading-none tracking-tight text-foreground sm:mt-4 sm:text-3xl"
+                className="mt-7 text-2xl font-medium tabular-nums leading-none tracking-tight text-foreground sm:mt-4 sm:text-3xl"
               >
-                {progress}%
+                {progress}
               </motion.span>
             </div>
           </motion.div>
