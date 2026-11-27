@@ -642,8 +642,8 @@ function ResponseScreen() {
 /* Full gridded dashboard used in the hero phone */
 function DashboardScreen() {
   const kpis = [
-    { label: "Outstanding", value: "$8.4k", accent: "text-amber-600" },
-    { label: "Collected", value: "$12.4k", accent: "text-emerald-600" },
+    { label: "Outstanding", value: "$8.4k", accent: "text-amber-600 dark:text-amber-400" },
+    { label: "Collected", value: "$12.4k", accent: "text-emerald-600 dark:text-emerald-400" },
     { label: "Open rate", value: "68%", accent: "text-foreground" },
     { label: "Replies", value: "3", accent: "text-foreground" },
   ]
@@ -715,7 +715,7 @@ function DashboardScreen() {
           <p className="font-mono text-[6px] tracking-wider text-muted-foreground uppercase">
             Cash flow
           </p>
-          <span className="font-mono text-[6px] font-medium text-emerald-600">
+          <span className="font-mono text-[6px] font-medium text-emerald-600 dark:text-emerald-400">
             +12.4%
           </span>
         </div>
@@ -888,7 +888,6 @@ serves."
             entire collections process.
           </p>
 
-          {/* 🚨 UPDATED BUTTONS HERE */}
           <div className="hero-cta mt-14 flex flex-wrap items-center gap-3">
             <MagneticCTA href="#duely">See how Duely works</MagneticCTA>
             <Link
@@ -1089,7 +1088,7 @@ function Services() {
                     key={item}
                     className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground"
                   >
-                    <span className="h-1 w-1 rounded-full bg-current opacity-60" />
+                    <span className="h-[1px] w-3 bg-muted-foreground/50" />
                     {item}
                   </li>
                 ))}
@@ -1269,7 +1268,7 @@ function DuelyExplainer() {
           return (
             <div
               key={step.id}
-              className="duely-card sticky top-24"
+              className="duely-card sticky top-20 lg:top-24 mb-8 lg:mb-0"
               style={{
                 zIndex: i + 1,
                 marginBottom: i === DUELY_STEPS.length - 1 ? 0 : "4rem",
@@ -1277,7 +1276,7 @@ function DuelyExplainer() {
             >
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_25px_60px_-30px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_80px_-25px_rgba(0,0,0,0.7)]">
                 <div className="grid lg:grid-cols-[1.15fr_1fr]">
-                  <div className="flex flex-col justify-between p-10 sm:p-14 lg:p-20">
+                  <div className="flex flex-col justify-between p-6 sm:p-10 lg:p-20">
                     <div>
                       <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] tracking-[0.25em] text-muted-foreground uppercase">
                         <span className="inline-flex items-center gap-2">
@@ -1287,26 +1286,26 @@ function DuelyExplainer() {
                         <span className="opacity-60">/</span>
                         <span>{step.kicker}</span>
                       </div>
-                      <h3 className="mt-10 text-[clamp(2rem,4vw,3.5rem)] leading-[1.02] font-normal tracking-tighter">
+                      <h3 className="mt-6 lg:mt-10 text-[clamp(2rem,4vw,3.5rem)] leading-[1.02] font-normal tracking-tighter">
                         {step.title}
                       </h3>
-                      <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">
+                      <p className="mt-4 lg:mt-6 max-w-md text-base leading-relaxed text-muted-foreground">
                         {step.body}
                       </p>
                     </div>
-                    <ul className="mt-14 space-y-3">
+                    <ul className="mt-8 lg:mt-14 space-y-3">
                       {step.bullets.map((b) => (
                         <li
                           key={b}
                           className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground"
                         >
-                          <span className="h-1 w-1 rounded-full bg-current opacity-60" />
+                          <span className="h-[1px] w-3 bg-muted-foreground/50" />
                           {b}
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div className="flex items-center justify-center bg-muted/30 p-10 sm:p-14 lg:p-20">
+                  <div className="flex items-center justify-center bg-muted/30 p-6 sm:p-10 lg:p-20">
                     <PhoneMockup screen={step.screen} />
                   </div>
                 </div>

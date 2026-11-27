@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@formspree/react": "^3.0.0",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^7.0.9",
     "@hugeicons/core-free-icons": "^4.4.0",

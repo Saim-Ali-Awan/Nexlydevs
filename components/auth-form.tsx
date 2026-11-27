@@ -2,17 +2,23 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, Eye, EyeOff, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { toast } from '@/components/ui/toast'
 
-// --- Icons ---
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -32,270 +38,203 @@ function GitHubIcon() {
   )
 }
 
-function AppleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true">
-      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-    </svg>
-  )
+function getAuthErrorMessage(error: { code?: string; message: string; status?: number }): string {
+  const code = error.code ?? ''
+  const msg = error.message.toLowerCase()
+  
+  if (code === 'invalid_credentials' || msg.includes('invalid login credentials')) {
+    return 'Incorrect email or password. If you originally signed up with Google or GitHub, click those buttons instead. To use a password, log in with Google/GitHub first, then set a password in your Account Settings.'
+  }
+  if (code === 'user_already_exists' || msg.includes('user already registered') || msg.includes('already registered')) {
+    return 'An account with this email already exists. Redirecting you to login...'
+  }
+  if (code === 'weak_password' || msg.includes('password should be at least')) {
+    return 'Password is too weak. Use at least 8 characters.'
+  }
+  if (code === 'over_request_rate_limit' || error.status === 429) {
+    return 'Too many attempts. Please wait a few minutes.'
+  }
+  return 'Something went wrong. Please try again.'
 }
 
-const container = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
-}
-const item = {
-  hidden: { opacity: 0, y: 15, filter: 'blur(4px)' },
-  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
-}
+const container = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } }
+const item = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
 
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const isLogin = mode === 'login'
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  const nextUrl = searchParams.get('next') || '/'
 
   const [firstName, setFirstName] = React.useState('')
   const [lastName, setLastName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
-  
   const [loading, setLoading] = React.useState(false)
   const [oauthLoading, setOauthLoading] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
-  const [showDialog, setShowDialog] = React.useState(false)
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'apple') => {
+  React.useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) setError(decodeURIComponent(urlError))
+  }, [searchParams])
+
+  const handleOAuth = async (provider: 'google' | 'github') => {
     setError(null)
     setOauthLoading(provider)
-    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+        options: { 
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
+          queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined
         },
       })
       if (error) throw error
     } catch (err: any) {
-      setError(err?.message ?? `Could not connect to ${provider}.`)
+      setError(getAuthErrorMessage(err))
       setOauthLoading(null)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (isLogin) {
-      if (!email || !password) { setError('Please enter your email and password.'); return }
-    } else {
-      if (!firstName || !lastName || !email || !password) { setError('Please fill in all fields.'); return }
-      if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
-    }
+    const trimmedEmail = email.trim().toLowerCase()
+
+    if (!trimmedEmail || !password) return setError('Please enter your email and password.')
+    if (!isLogin && (!firstName.trim() || !lastName.trim())) return setError('Please enter your first and last name.')
+    if (!isLogin && password.length < 8) return setError('Password must be at least 8 characters.')
 
     setError(null)
     setLoading(true)
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password })
         if (error) throw error
-        setShowDialog(true) 
+        toast.add({ type: 'success', title: 'Welcome back!', description: 'Redirecting...' })
+        router.push(nextUrl)
+        router.refresh()
       } else {
-        const { data, error } = await supabase.auth.signUp({ 
-          email, 
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
           password,
-          options: {
-            data: { first_name: firstName, last_name: lastName }
-          }
+          options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
         })
+        
+        if (error?.message.includes('already registered') || (data?.user && !data?.session && !data?.user?.identities?.length)) {
+           toast.add({ type: 'error', title: 'Account exists', description: 'Please log in instead.' })
+           router.push('/login')
+           return
+        }
         if (error) throw error
         
-        if (data?.user && !data.session) {
-          toast.add({ 
-            type: 'success', 
-            title: 'Check your email', 
-            description: 'We sent you a link to verify your account.' 
-          })
-        } else if (data.session) {
-          setShowDialog(true)
-        }
+        toast.add({ type: 'success', title: 'Account created!', description: 'Welcome to NexlyDevs.' })
+        router.push(nextUrl)
+        router.refresh()
       }
     } catch (err: any) {
-      console.error("Auth Error:", err)
-      setError(err?.message ?? 'An error occurred during authentication.')
+      setError(getAuthErrorMessage(err))
+      if (err?.message?.includes('already registered')) {
+        setTimeout(() => router.push('/login'), 2000)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoToDuely = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const hasDuelyAccess = user?.user_metadata?.hasDuelyAccess === true
-
-    if (hasDuelyAccess) {
-      router.push('/duely') 
-    } else {
-      toast.add({
-        type: 'error',
-        title: 'Subscription Required',
-        description: 'You need to subscribe to Duely to access the dashboard.',
-      })
-      router.push('/pricing')
-    }
-  }
-
   return (
-    <>
-      <div className="flex min-h-[100dvh] items-center justify-center px-4 py-12 bg-background">
-        <motion.div initial="hidden" animate="visible" variants={container} className="w-full max-w-[400px]">
-          <Card className="shadow-lg border-border bg-card rounded-2xl">
-            <CardHeader className="space-y-1 text-center">
-              <motion.div variants={item}>
-                <CardTitle className="text-2xl font-semibold tracking-tight">
-                  {isLogin ? 'Welcome back' : 'Create an account'}
-                </CardTitle>
-              </motion.div>
+    <div className="flex min-h-[100dvh] items-center justify-center px-4 py-12 bg-background">
+      <motion.div initial="hidden" animate="visible" variants={container} className="w-full max-w-[400px]">
+        <Card className="shadow-lg border-border bg-card rounded-2xl">
+          <CardHeader className="space-y-1 text-center">
+            <motion.div variants={item}>
+              <CardTitle className="text-2xl font-semibold tracking-tight">
+                {isLogin ? 'Welcome back' : 'Create an account'}
+              </CardTitle>
+            </motion.div>
+            <motion.div variants={item} className="space-y-2">
+              <CardDescription>
+                {isLogin ? 'Enter your email below to login to your account' : 'Enter your details below to create your account'}
+              </CardDescription>
+            </motion.div>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <motion.div variants={item} className="grid grid-cols-2 gap-2">
+              <Button variant="outline" type="button" className="cursor-pointer rounded-full" disabled={loading || oauthLoading !== null} onClick={() => handleOAuth('github')}>
+                {oauthLoading === 'github' ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitHubIcon />}
+              </Button>
+              <Button variant="outline" type="button" className="cursor-pointer rounded-full" disabled={loading || oauthLoading !== null} onClick={() => handleOAuth('google')}>
+                {oauthLoading === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+              </Button>
+            </motion.div>
+
+            <motion.div variants={item} className="relative mt-4">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+              </div>
+            </motion.div>
+
+            <form noValidate onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {!isLogin && (
+                <motion.div variants={item} className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First name</Label>
+                    <Input id="firstName" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last name</Label>
+                    <Input id="lastName" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  </div>
+                </motion.div>
+              )}
+
               <motion.div variants={item} className="space-y-2">
-                <CardDescription>
-                  {isLogin 
-                    ? 'Enter your email below to login to your account' 
-                    : 'Enter your details below to create your account'}
-                </CardDescription>
-                <p className="text-[13px] font-medium text-foreground">
-                  One login for every app.
-                </p>
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" autoComplete="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </motion.div>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
               
-              <motion.div variants={item} className="grid grid-cols-3 gap-2">
-                <Button variant="outline" type="button" className="cursor-pointer rounded-full" disabled={loading || oauthLoading !== null} onClick={() => handleOAuth('github')}>
-                  {oauthLoading === 'github' ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitHubIcon />}
-                </Button>
-                <Button variant="outline" type="button" className="cursor-pointer rounded-full" disabled={loading || oauthLoading !== null} onClick={() => handleOAuth('google')}>
-                  {oauthLoading === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-                </Button>
-                <Button variant="outline" type="button" className="cursor-pointer rounded-full" disabled={loading || oauthLoading !== null} onClick={() => handleOAuth('apple')}>
-                  {oauthLoading === 'apple' ? <Loader2 className="h-4 w-4 animate-spin" /> : <AppleIcon />}
-                </Button>
-              </motion.div>
-
-              <motion.div variants={item} className="relative mt-4">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+              <motion.div variants={item} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {isLogin && (
+                    <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer">Forgot password?</Link>
+                  )}
+                </div>
+                <div className="relative">
+                  <Input id="password" type={showPassword ? 'text' : 'password'} autoComplete={isLogin ? 'current-password' : 'new-password'} placeholder={isLogin ? 'Enter your password' : 'At least 8 characters'} value={password} onChange={(e) => setPassword(e.target.value)} className="pr-10" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </motion.div>
 
-              <form noValidate onSubmit={handleSubmit} className="space-y-4 mt-4">
-                {!isLogin && (
-                  <motion.div variants={item} className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First name</Label>
-                      <Input id="firstName" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last name</Label>
-                      <Input id="lastName" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                    </div>
-                  </motion.div>
-                )}
+              {error && <motion.p variants={item} role="alert" className="text-sm font-medium text-destructive">{error}</motion.p>}
 
-                <motion.div variants={item} className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </motion.div>
-                
-                <motion.div variants={item} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    {isLogin && (
-                      <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer">
-                        Forgot password?
-                      </Link>
-                    )}
-                  </div>
-                  <div className="relative">
-                    {/* 🚨 Removed dummy dots, added text placeholder */}
-                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} className="pr-10" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer">
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </motion.div>
-
-                {error && <motion.p variants={item} className="text-sm font-medium text-destructive">{error}</motion.p>}
-
-                <motion.div variants={item}>
-                  <Button type="submit" className="w-full cursor-pointer h-11 rounded-full" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLogin ? 'Sign In' : 'Sign Up'}
-                  </Button>
-                </motion.div>
-              </form>
-            </CardContent>
-
-            <CardFooter className="flex flex-col space-y-4 text-center text-sm text-muted-foreground pt-4 border-t border-border">
               <motion.div variants={item}>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <Link href={isLogin ? '/signup' : '/login'} className="text-foreground font-medium hover:underline underline-offset-4 cursor-pointer">
-                  {isLogin ? 'Sign up' : 'Log in'}
-                </Link>
+                <Button type="submit" className="w-full cursor-pointer h-11 rounded-full" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLogin ? 'Sign In' : 'Sign Up'}
+                </Button>
               </motion.div>
-            </CardFooter>
-          </Card>
-        </motion.div>
-      </div>
+            </form>
+          </CardContent>
 
-      {/* 🚨 Welcome Dialog with rounded-2xl */}
-      <AnimatePresence>
-        {showDialog && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowDialog(false)}
-              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="pointer-events-auto w-full max-w-[425px] rounded-2xl border border-border bg-card p-6 shadow-2xl relative"
-              >
-                <button 
-                  onClick={() => setShowDialog(false)}
-                  className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </button>
-                
-                <div className="flex flex-col space-y-1.5 text-center sm:text-left mb-6">
-                  <h2 className="text-lg font-semibold leading-none tracking-tight">Welcome!</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Where would you like to go next? Your account is connected to our software.
-                  </p>
-                </div>
-                
-                <div className="grid gap-4 py-4">
-                  <Button onClick={() => router.push('/')} variant="outline" className="w-full h-12 cursor-pointer rounded-full">
-                    View Website
-                  </Button>
-                  <Button onClick={handleGoToDuely} className="w-full h-12 cursor-pointer rounded-full">
-                    Open Duely Dashboard
-                  </Button>
-                </div>
-              </motion.div>
-            </div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
+          <CardFooter className="flex flex-col space-y-4 text-center text-sm text-muted-foreground pt-4 border-t border-border">
+            <motion.div variants={item}>
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <Link href={isLogin ? '/signup' : '/login'} className="text-foreground font-medium hover:underline underline-offset-4 cursor-pointer">
+                {isLogin ? 'Sign up' : 'Log in'}
+              </Link>
+            </motion.div>
+          </CardFooter>
+        </Card>
+      </motion.div>
+    </div>
   )
 }

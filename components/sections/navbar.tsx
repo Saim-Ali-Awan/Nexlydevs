@@ -6,8 +6,18 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Sun, Moon, X } from 'lucide-react'
+import { Sun, Moon, X, LayoutDashboard, LogOut, Settings, Loader2 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from '@/components/ui/toast'
 
 const EASE = [0.16, 1, 0.3, 1] as const
@@ -41,7 +51,9 @@ export function Navbar() {
   const [mounted, setMounted] = React.useState(false)
   const [user, setUser] = React.useState<User | null>(null)
   const [showLogoutDialog, setShowLogoutDialog] = React.useState(false)
+  const [logoutLoading, setLogoutLoading] = React.useState(false)
   const reduce = useReducedMotion()
+  const router = useRouter()
   
   const supabase = createClient()
 
@@ -92,11 +104,21 @@ export function Navbar() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setShowLogoutDialog(false)
-    setOpen(false)
-    toast.add({ type: 'success', title: 'Logged out successfully' })
-    window.location.href = '/' 
+    setLogoutLoading(true)
+    try {
+      await Promise.all([
+        supabase.auth.signOut(),
+        new Promise((resolve) => setTimeout(resolve, 600))
+      ])
+      setShowLogoutDialog(false)
+      setOpen(false)
+      toast.add({ type: 'success', title: 'Logged out successfully' })
+      router.push('/')
+      router.refresh()
+    } catch (error) {
+      setLogoutLoading(false)
+      toast.add({ type: 'error', title: 'Error logging out' })
+    }
   }
 
   React.useEffect(() => {
@@ -110,6 +132,10 @@ export function Navbar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const fullName = user?.user_metadata?.full_name || user?.user_metadata?.first_name || 'User'
+  const initials = fullName.substring(0, 2).toUpperCase()
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+
   return (
     <>
       <style>{`
@@ -122,7 +148,7 @@ export function Navbar() {
         ::view-transition-new(root) { z-index: 1; }
       `}</style>
 
-      <header className="fixed top-0 inset-x-0 z-50 bg-background border-b border-border/60">
+      <header className="fixed top-0 inset-x-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/60">
         <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-14">
           <nav aria-label="Primary" className="flex h-20 sm:h-24 items-center justify-between gap-4">
             <Link
@@ -171,26 +197,78 @@ export function Navbar() {
 
               <div className="hidden lg:flex items-center gap-4">
                 {user ? (
-                  <>
-                    {/* 🚨 Replaced real email with faded dummy email */}
-                    <span className="text-sm font-medium text-muted-foreground opacity-50">
-                      user@nexlydevs.com
-                    </span>
-                    <Button onClick={() => setShowLogoutDialog(true)} variant="outline" className="rounded-full">
-                      Log out
-                    </Button>
-                  </>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                          <Avatar className="h-9 w-9 border border-border">
+                            <AvatarImage src={avatarUrl} alt={fullName} />
+                            <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
+                          </Avatar>
+                        </Button>
+                      }
+                    />
+                    {/* 🚨 Fixed: Removed forceMount */}
+                    <DropdownMenuContent 
+                      className="w-56 duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2" 
+                      align="end" 
+                    >
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="font-normal">
+                          <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{fullName}</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                              {user.email}
+                            </p>
+                          </div>
+                        </DropdownMenuLabel>
+                      </DropdownMenuGroup>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuGroup>
+                        {/* 🚨 Fixed: Replaced asChild with render prop */}
+                        <DropdownMenuItem 
+                          render={
+                            <Link href="/duely" className="w-full cursor-pointer flex items-center justify-between">
+                              <span>Duely Dashboard</span>
+                              <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                            </Link>
+                          }
+                        />
+                        
+                        <DropdownMenuItem 
+                          render={
+                            <Link href="/settings" className="w-full cursor-pointer flex items-center justify-between">
+                              <span>Account Settings</span>
+                              <Settings className="h-4 w-4 text-muted-foreground" />
+                            </Link>
+                          }
+                        />
+                      </DropdownMenuGroup>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuItem 
+                        onClick={() => setShowLogoutDialog(true)} 
+                        className="text-destructive cursor-pointer flex items-center justify-between"
+                      >
+                        <span>Log out</span>
+                        <LogOut className="h-4 w-4" />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : (
                   <>
                     <Link 
                       href="/login" 
-                      className={buttonVariants({ variant: "ghost", className: "rounded-full" })}
+                      className={buttonVariants({ variant: "ghost", className: "rounded-full h-10" })}
                     >
                       Log in
                     </Link>
                     <Link 
                       href="/signup" 
-                      className={buttonVariants({ className: "rounded-full px-6" })}
+                      className={buttonVariants({ className: "rounded-full px-6 h-10" })}
                     >
                       Sign up
                     </Link>
@@ -224,10 +302,9 @@ export function Navbar() {
       </header>
 
       <AnimatePresence mode="wait">
-        {open && <MenuOverlay onClose={() => setOpen(false)} user={user} onLogout={() => setShowLogoutDialog(true)} />}
+        {open && <MenuOverlay onClose={() => setOpen(false)} user={user} onLogout={() => setShowLogoutDialog(true)} avatarUrl={avatarUrl} initials={initials} fullName={fullName} />}
       </AnimatePresence>
 
-      {/* 🚨 Logout Confirmation Dialog with rounded-2xl matching homepage */}
       <AnimatePresence>
         {showLogoutDialog && (
           <>
@@ -262,11 +339,27 @@ export function Navbar() {
                 </div>
                 
                 <div className="flex justify-end gap-3">
-                  <Button onClick={() => setShowLogoutDialog(false)} variant="outline" className="cursor-pointer rounded-full">
+                  <Button 
+                    onClick={() => setShowLogoutDialog(false)} 
+                    variant="outline" 
+                    className="cursor-pointer rounded-full"
+                    disabled={logoutLoading}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleLogout} className="cursor-pointer rounded-full">
-                    Log out
+                  <Button 
+                    onClick={handleLogout} 
+                    className="cursor-pointer rounded-full min-w-[120px]"
+                    disabled={logoutLoading}
+                  >
+                    {logoutLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Logging out
+                      </>
+                    ) : (
+                      'Log out'
+                    )}
                   </Button>
                 </div>
               </motion.div>
@@ -278,7 +371,7 @@ export function Navbar() {
   )
 }
 
-function MenuOverlay({ onClose, user, onLogout }: { onClose: () => void, user: User | null, onLogout: () => void }) {
+function MenuOverlay({ onClose, user, onLogout, avatarUrl, initials, fullName }: { onClose: () => void, user: User | null, onLogout: () => void, avatarUrl?: string, initials: string, fullName: string }) {
   const reduce = useReducedMotion()
   const router = useRouter()
 
@@ -347,35 +440,46 @@ function MenuOverlay({ onClose, user, onLogout }: { onClose: () => void, user: U
         >
           <div className="flex flex-col gap-4 lg:hidden">
             {user ? (
-              <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium text-muted-foreground">
-                  {/* 🚨 Faded dummy email on mobile */}
-                  Logged in as <span className="opacity-50">user@nexlydevs.com</span>
+              <div className="flex flex-col gap-4 border border-border/60 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={avatarUrl} alt={fullName} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{fullName}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
+                  </div>
                 </div>
-                <Button 
-                  onClick={() => {
-                    onClose()
-                    onLogout()
-                  }} 
-                  variant="outline" 
-                  className="rounded-full w-full"
-                >
-                  Log out
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => { onClose(); router.push('/duely') }} variant="outline" className="rounded-full w-full h-11 justify-start px-4">
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Duely Dashboard
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      onClose()
+                      onLogout()
+                    }} 
+                    variant="destructive" 
+                    className="rounded-full w-full h-11 justify-start px-4"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" /> Log out
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <Link
                   href="/login"
                   onClick={onClose}
-                  className={buttonVariants({ variant: "ghost", className: "rounded-full flex-1" })}
+                  className={buttonVariants({ variant: "ghost", className: "rounded-full flex-1 h-12" })}
                 >
                   Log in
                 </Link>
                 <Link
                   href="/signup"
                   onClick={onClose}
-                  className={buttonVariants({ className: "rounded-full px-6 flex-1" })}
+                  className={buttonVariants({ className: "rounded-full px-6 flex-1 h-12" })}
                 >
                   Sign up
                 </Link>
