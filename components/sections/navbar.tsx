@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Sun, Moon, X, LayoutDashboard, LogOut, Settings, Loader2 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -61,11 +61,11 @@ export function Navbar() {
     setMounted(true)
     setIsDark(document.documentElement.classList.contains('dark'))
     
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
       setUser(data.user)
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null)
     })
 
@@ -160,6 +160,7 @@ export function Navbar() {
             </Link>
 
             <div className="flex items-center gap-2 shrink-0">
+              
               {mounted && (
                 <Button
                   type="button"
@@ -195,93 +196,94 @@ export function Navbar() {
                 </Button>
               )}
 
-              <div className="hidden lg:flex items-center gap-4">
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                          <Avatar className="h-9 w-9 border border-border">
-                            <AvatarImage src={avatarUrl} alt={fullName} />
-                            <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
-                          </Avatar>
-                        </Button>
-                      }
-                    />
-                    {/* 🚨 Fixed: Removed forceMount */}
-                    <DropdownMenuContent 
-                      className="w-56 duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2" 
-                      align="end" 
-                    >
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="font-normal">
-                          <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">{fullName}</p>
-                            <p className="text-xs leading-none text-muted-foreground">
-                              {user.email}
-                            </p>
-                          </div>
-                        </DropdownMenuLabel>
-                      </DropdownMenuGroup>
-                      
-                      <DropdownMenuSeparator />
-                      
-                      <DropdownMenuGroup>
-                        {/* 🚨 Fixed: Replaced asChild with render prop */}
-                        <DropdownMenuItem 
-                          render={
-                            <Link href="/duely" className="w-full cursor-pointer flex items-center justify-between">
-                              <span>Duely Dashboard</span>
-                              <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                            </Link>
-                          }
-                        />
-                        
-                        <DropdownMenuItem 
-                          render={
-                            <Link href="/settings" className="w-full cursor-pointer flex items-center justify-between">
-                              <span>Account Settings</span>
-                              <Settings className="h-4 w-4 text-muted-foreground" />
-                            </Link>
-                          }
-                        />
-                      </DropdownMenuGroup>
-                      
-                      <DropdownMenuSeparator />
+              {/* Desktop Auth Links (Hidden on Mobile) */}
+              {!user && (
+                <div className="hidden lg:flex items-center gap-4">
+                  <Link 
+                    href="/login" 
+                    className={buttonVariants({ variant: "ghost", className: "rounded-full h-10" })}
+                  >
+                    Log in
+                  </Link>
+                  <Link 
+                    href="/signup" 
+                    className={buttonVariants({ className: "rounded-full px-6 h-10" })}
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              )}
+
+              {/* Profile Dropdown (Visible on Desktop AND Mobile if logged in) */}
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="ghost" className="relative h-11 w-11 rounded-full ml-1">
+                        <Avatar className="h-9 w-9 border border-border">
+                          <AvatarImage src={avatarUrl} alt={fullName} />
+                          <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent 
+                    className="w-56 duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2" 
+                    align="end" 
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">{fullName}</p>
+                          <p className="text-xs leading-none text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                    </DropdownMenuGroup>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem 
+                        render={
+                          <Link href="/duely" className="w-full cursor-pointer flex items-center justify-between">
+                            <span>Duely Dashboard</span>
+                            <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                          </Link>
+                        }
+                      />
                       
                       <DropdownMenuItem 
-                        onClick={() => setShowLogoutDialog(true)} 
-                        className="text-destructive cursor-pointer flex items-center justify-between"
-                      >
-                        <span>Log out</span>
-                        <LogOut className="h-4 w-4" />
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <>
-                    <Link 
-                      href="/login" 
-                      className={buttonVariants({ variant: "ghost", className: "rounded-full h-10" })}
+                        render={
+                          <Link href="/settings" className="w-full cursor-pointer flex items-center justify-between">
+                            <span>Account Settings</span>
+                            <Settings className="h-4 w-4 text-muted-foreground" />
+                          </Link>
+                        }
+                      />
+                    </DropdownMenuGroup>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem 
+                      onClick={() => setShowLogoutDialog(true)} 
+                      className="text-destructive cursor-pointer flex items-center justify-between"
                     >
-                      Log in
-                    </Link>
-                    <Link 
-                      href="/signup" 
-                      className={buttonVariants({ className: "rounded-full px-6 h-10" })}
-                    >
-                      Sign up
-                    </Link>
-                  </>
-                )}
-              </div>
+                      <span>Log out</span>
+                      <LogOut className="h-4 w-4" />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
+              {/* Hamburger Menu Button */}
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-label={open ? 'Close menu' : 'Open menu'}
                 aria-expanded={open}
-                className="group h-11 w-11 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                className="group h-11 w-11 flex items-center justify-center rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors ml-1"
               >
                 <span className="relative flex h-3 w-5 flex-col justify-between">
                   <motion.span
@@ -302,7 +304,7 @@ export function Navbar() {
       </header>
 
       <AnimatePresence mode="wait">
-        {open && <MenuOverlay onClose={() => setOpen(false)} user={user} onLogout={() => setShowLogoutDialog(true)} avatarUrl={avatarUrl} initials={initials} fullName={fullName} />}
+        {open && <MenuOverlay onClose={() => setOpen(false)} user={user} />}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -371,7 +373,7 @@ export function Navbar() {
   )
 }
 
-function MenuOverlay({ onClose, user, onLogout, avatarUrl, initials, fullName }: { onClose: () => void, user: User | null, onLogout: () => void, avatarUrl?: string, initials: string, fullName: string }) {
+function MenuOverlay({ onClose, user }: { onClose: () => void, user: User | null }) {
   const reduce = useReducedMotion()
   const router = useRouter()
 
@@ -438,54 +440,25 @@ function MenuOverlay({ onClose, user, onLogout, avatarUrl, initials, fullName }:
           transition={{ duration: 0.6, delay: 0.7, ease: EASE }}
           className="mt-10 flex flex-col gap-8"
         >
-          <div className="flex flex-col gap-4 lg:hidden">
-            {user ? (
-              <div className="flex flex-col gap-4 border border-border/60 rounded-2xl p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={avatarUrl} alt={fullName} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{fullName}</span>
-                    <span className="text-xs text-muted-foreground">{user.email}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button onClick={() => { onClose(); router.push('/duely') }} variant="outline" className="rounded-full w-full h-11 justify-start px-4">
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> Duely Dashboard
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      onClose()
-                      onLogout()
-                    }} 
-                    variant="destructive" 
-                    className="rounded-full w-full h-11 justify-start px-4"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" /> Log out
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/login"
-                  onClick={onClose}
-                  className={buttonVariants({ variant: "ghost", className: "rounded-full flex-1 h-12" })}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={onClose}
-                  className={buttonVariants({ className: "rounded-full px-6 flex-1 h-12" })}
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
-          </div>
+          {/* Show Login/Signup buttons in the mobile menu if logged out */}
+          {!user && (
+            <div className="flex flex-col gap-3 lg:hidden">
+              <Link
+                href="/login"
+                onClick={onClose}
+                className={buttonVariants({ variant: "outline", className: "rounded-full w-full h-12" })}
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={onClose}
+                className={buttonVariants({ className: "rounded-full w-full h-12" })}
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 border-t border-border/60 pt-6">
             <p className="max-w-sm text-sm text-muted-foreground leading-relaxed">
